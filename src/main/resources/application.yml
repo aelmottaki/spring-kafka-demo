@@ -1,0 +1,6 @@
+spring:
+  kafka:
+    bootstrap-servers: kafka:29092  # Use internal Docker network
+    consumer:
+      group-id: user-group
+      auto-offset-reset: earliest
