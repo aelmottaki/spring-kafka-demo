@@ -5,11 +5,13 @@ pipeline {
 			steps {
 				git branch: 'main', url: 'https://github.com/aelmottaki/spring-kafka-demo'
 			}
-		} stage('Build') {
+		}
+		stage('Build') {
 			steps {
 				sh 'mvn clean compile'
 			}
-		} stage('Test') {
+		}
+		stage('Test') {
 			steps {
 				sh 'mvn test'
 			} post {
@@ -17,7 +19,8 @@ pipeline {
 					junit '**/target/surefire-reports/TEST-*.xml'
 				}
 			}
-		} stage('Package') {
+		}
+		stage('Package') {
 			steps {
 				sh 'mvn -DskipTests package'
 			} post {
@@ -25,7 +28,8 @@ pipeline {
 					archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
 				}
 			}
-		} stage('Deploy') {
+		}
+		Kstage('Deploy') {
 			steps {
 				echo 'Deploy step (add real deployment later)'
 			}
