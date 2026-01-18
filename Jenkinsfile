@@ -23,11 +23,10 @@ pipeline {
 
 		stage('SonarQube Analysis') {
 			steps {
-				sh """
-            mvn sonar:sonar \
-            -Dsonar.host.url=http://sonarqube:9000 \
-            -Dsonar.login=sqa_38564625c23e9b9a4b4e2f66d241e4b206070aa0
-      		  """
+				// 'SonarQube' must match the name configured in Jenkins
+				withSonarQubeEnv('SonarQube') {
+					sh 'mvn clean verify sonar:sonar'
+				}
 			}
 		}
 
