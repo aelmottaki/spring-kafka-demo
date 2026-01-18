@@ -29,7 +29,7 @@ pipeline {
 				}
 			}
 		}
-		Kstage('Deploy') {
+		stage('Deploy') {
 			steps {
 				echo 'Deploy step (add real deployment later)'
 			}
