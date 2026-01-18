@@ -1,6 +1,7 @@
 pipeline {
 	agent any
 
+
 	tools {
 		maven 'M3'
 	}
@@ -17,6 +18,16 @@ pipeline {
 		stage('Build') {
 			steps {
 				sh 'mvn clean compile'
+			}
+		}
+
+		stage('SonarQube Analysis') {
+			steps {
+				sh """
+            mvn sonar:sonar \
+            -Dsonar.host.url=http://sonarqube:9000 \
+            -Dsonar.login=sqa_38564625c23e9b9a4b4e2f66d241e4b206070aa0
+      		  """
 			}
 		}
 
