@@ -15,6 +15,13 @@ pipeline {
 			}
 		}
 
+		stage('Check Java') {
+            steps {
+                sh 'java -version'
+                sh 'mvn -v'
+            }
+        }
+
 		stage('Build') {
 			steps {
 				sh 'mvn clean compile'
