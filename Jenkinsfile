@@ -5,6 +5,10 @@ pipeline {
 	tools {
 		maven 'M3'
 	}
+	environment {
+            JAVA_HOME = tool 'jdk21'
+            PATH = "/Users/mac/Library/Java/JavaVirtualMachines/sapmachine-21.0.8/Contents/Home"
+        }
 
 	stages {
 
