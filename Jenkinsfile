@@ -1,14 +1,11 @@
 pipeline {
-	agent any
+    agent any
 
 
-	tools {
-		maven 'M3'
-	}
-	environment {
-            JAVA_HOME = tool 'jdk21'
-            PATH = "${env.JAVA_HOME}/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-        }
+    tools {
+        maven 'M3'
+        jdk 'jdk21'
+    }
 
 	stages {
 
@@ -19,8 +16,9 @@ pipeline {
 			}
 		}
 
-		stage('Check Java') {
+  stage('Check Java') {
             steps {
+                sh 'echo Using JAVA_HOME=$JAVA_HOME'
                 sh 'java -version'
                 sh 'mvn -v'
             }
