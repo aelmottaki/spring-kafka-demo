@@ -7,6 +7,10 @@ pipeline {
         jdk 'jdk21'
     }
 
+    parameters {
+        booleanParam(name: 'STOP_SERVICE', defaultValue: false, description: 'Stop the running kafkademo service instead of starting it')
+    }
+
 	stages {
 
 		stage('Checkout') {
@@ -43,18 +47,145 @@ pipeline {
 			}
 		}
 
-
-
-
-		stage('Package') {
+		stage('SonarQube Analysis') {
 			steps {
-				sh 'mvn -DskipTests package'
-			}
-			post {
-				success {
-					archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
+				// Inject the token stored in Jenkins credentials (type: Secret Text)
+				withCredentials([string(credentialsId: 'SONAR_TOKEN', variable: 'TOKEN')]) {
+					withSonarQubeEnv('SonarQube') {
+						// Using the Sonar Scanner plugin step
+						sonar(
+							projectKey: 'spring-kafka-demo',
+							projectName: 'Spring Kafka Demo',
+							sources: 'src/main/java',
+							language: 'java',
+							java: '', // optional: path to Java home if needed
+							extraProperties: [
+								'sonar.coverage.jacoco.xmlReportPaths': 'target/site/jacoco/jacoco.xml',
+								'sonar.login': "${sqa_38564625c23e9b9a4b4e2f66d241e4b206070aa0}" // inject token here
+							]
+						)
+					}
 				}
 			}
 		}
-	}
+
+
+        stage('Package') {
+            steps {
+                sh 'mvn -DskipTests package'
+            }
+            post {
+                success {
+                    archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
+                }
+            }
+        }
+
+        stage('Deploy Artifact') {
+            when {
+                expression { !params.STOP_SERVICE }
+            }
+            steps {
+                // Copy latest built jar to Desktop as kafkademo.jar
+                sh '''
+                    set -e
+                    DEST_DIR="/Users/mac/Desktop"
+                    mkdir -p "$DEST_DIR"
+                    JAR_FILE=$(ls -t target/*.jar | head -n1)
+                    if [ -z "$JAR_FILE" ]; then
+                      echo "No JAR found in target/. Did the build succeed?" >&2
+                      exit 1
+                    fi
+                    echo "Deploying $JAR_FILE to $DEST_DIR/kafkademo.jar"
+                    cp "$JAR_FILE" "$DEST_DIR/kafkademo.jar"
+                '''
+            }
+        }
+
+        stage('Stop Service') {
+            when {
+                expression { params.STOP_SERVICE }
+            }
+            steps {
+                sh '''
+                    set +e
+                    PID_FILE="/Users/mac/Desktop/kafkademo.pid"
+                    if [ -f "$PID_FILE" ]; then
+                      PID=$(cat "$PID_FILE")
+                      if ps -p $PID > /dev/null 2>&1; then
+                        echo "Stopping kafkademo (PID $PID)"
+                        kill -TERM $PID
+                        # wait up to 10s
+                        for i in $(seq 1 10); do
+                          if ps -p $PID > /dev/null 2>&1; then
+                            sleep 1
+                          else
+                            break
+                          fi
+                        done
+                        if ps -p $PID > /dev/null 2>&1; then
+                          echo "Process still running, sending KILL"
+                          kill -KILL $PID
+                        fi
+                      else
+                        echo "No running process with PID $PID; removing stale PID file."
+                      fi
+                      rm -f "$PID_FILE"
+                    else
+                      echo "No PID file found; service may not be running."
+                    fi
+                '''
+            }
+        }
+
+        stage('Start Service') {
+            when {
+                expression { !params.STOP_SERVICE }
+            }
+            steps {
+                withEnv(["JAVA_HOME=${tool 'jdk21'}", "PATH=${tool 'jdk21'}/bin:${env.PATH}"]) {
+                    sh '''
+                        set -e
+                        APP_JAR="/Users/mac/Desktop/kafkademo.jar"
+                        LOG_OUT="/Users/mac/Desktop/kafkademo.out"
+                        LOG_ERR="/Users/mac/Desktop/kafkademo.err"
+                        PID_FILE="/Users/mac/Desktop/kafkademo.pid"
+
+                        # Stop existing instance if running
+                        if [ -f "$PID_FILE" ]; then
+                          OLD_PID=$(cat "$PID_FILE")
+                          if ps -p $OLD_PID > /dev/null 2>&1; then
+                            echo "Stopping existing kafkademo (PID $OLD_PID)"
+                            kill -TERM $OLD_PID || true
+                            for i in $(seq 1 10); do
+                              if ps -p $OLD_PID > /dev/null 2>&1; then
+                                sleep 1
+                              else
+                                break
+                              fi
+                            done
+                            if ps -p $OLD_PID > /dev/null 2>&1; then
+                              echo "Existing process still running, forcing kill"
+                              kill -KILL $OLD_PID || true
+                            fi
+                          fi
+                          rm -f "$PID_FILE"
+                        fi
+
+                        echo "Starting kafkademo with JAVA_HOME=$JAVA_HOME"
+                        nohup java -jar "$APP_JAR" > "$LOG_OUT" 2> "$LOG_ERR" &
+                        echo $! > "$PID_FILE"
+                        sleep 5
+                        NEW_PID=$(cat "$PID_FILE")
+                        if ps -p $NEW_PID > /dev/null 2>&1; then
+                          echo "kafkademo started as PID $NEW_PID"
+                        else
+                          echo "Failed to start kafkademo; check logs at $LOG_OUT and $LOG_ERR" >&2
+                          exit 1
+                        fi
+                    '''
+                }
+            }
+        }
+    }
 }
