@@ -31,6 +31,18 @@ pipeline {
 		}
 
 
+		stage('Test & Coverage') {
+			steps {
+				sh 'mvn test' // JaCoCo plugin automatically instruments and generates coverage
+			}
+			post {
+				always {
+					junit '**/target/surefire-reports/TEST-*.xml'
+					jacoco execPattern: '**/target/jacoco.exec', classPattern: '**/target/classes', sourcePattern: '**/src/main/java', inclusionPattern: '**/*.class'
+				}
+			}
+		}
+
 		stage('SonarQube Analysis') {
 			steps {
 				// Inject the token stored in Jenkins credentials (type: Secret Text)
