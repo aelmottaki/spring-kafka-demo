@@ -130,27 +130,6 @@ pipeline {
                         LOG_ERR="/Users/mac/Desktop/kafkademo.err"
                         PID_FILE="/Users/mac/Desktop/kafkademo.pid"
 
-                        # Stop existing instance if running
-                        if [ -f "$PID_FILE" ]; then
-                          OLD_PID=$(cat "$PID_FILE")
-                          if ps -p $OLD_PID > /dev/null 2>&1; then
-                            echo "Stopping existing kafkademo (PID $OLD_PID)"
-                            kill -TERM $OLD_PID || true
-                            for i in $(seq 1 10); do
-                              if ps -p $OLD_PID > /dev/null 2>&1; then
-                                sleep 1
-                              else
-                                break
-                              fi
-                            done
-                            if ps -p $OLD_PID > /dev/null 2>&1; then
-                              echo "Existing process still running, forcing kill"
-                              kill -KILL $OLD_PID || true
-                            fi
-                          fi
-                          rm -f "$PID_FILE"
-                        fi
-
                         echo "Starting kafkademo with JAVA_HOME=$JAVA_HOME"
                         nohup java -jar "$APP_JAR" > "$LOG_OUT" 2> "$LOG_ERR" &
                         echo $! > "$PID_FILE"
