@@ -4,7 +4,7 @@ import jakarta.persistence.criteria.CriteriaBuilder;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
-@Component
+//@Component
 public class UserConsumer {
 
 
