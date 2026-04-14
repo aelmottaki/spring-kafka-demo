@@ -122,7 +122,7 @@ pipeline {
                 expression { !params.STOP_SERVICE }
             }
             steps {
-                withEnv(["JAVA_HOME=${tool 'jdk21'}", "PATH=${tool 'jdk21'}/bin:${env.PATH}"]) {
+                withEnv(["JAVA_HOME=${tool 'jdk21'}", "PATH=${tool 'jdk21'}/bin:${env.PATH}", "JENKINS_NODE_COOKIE=dontKillMe"]) {
                     sh '''
                         set -e
                         APP_JAR="/Users/mac/Desktop/kafkademo.jar"
@@ -130,16 +130,33 @@ pipeline {
                         LOG_ERR="/Users/mac/Desktop/kafkademo.err"
                         PID_FILE="/Users/mac/Desktop/kafkademo.pid"
 
+                        # Stop any previously running instance first
+                        if [ -f "$PID_FILE" ]; then
+                            OLD_PID=$(cat "$PID_FILE")
+                            if ps -p $OLD_PID > /dev/null 2>&1; then
+                                echo "Stopping existing kafkademo (PID $OLD_PID)"
+                                kill -TERM $OLD_PID || true
+                                sleep 3
+                            fi
+                            rm -f "$PID_FILE"
+                        fi
+
                         echo "Starting kafkademo with JAVA_HOME=$JAVA_HOME"
                         nohup java -jar "$APP_JAR" > "$LOG_OUT" 2> "$LOG_ERR" &
                         echo $! > "$PID_FILE"
+
                         sleep 5
+
                         NEW_PID=$(cat "$PID_FILE")
                         if ps -p $NEW_PID > /dev/null 2>&1; then
-                          echo "kafkademo started as PID $NEW_PID"
+                            echo "kafkademo started successfully as PID $NEW_PID"
                         else
-                          echo "Failed to start kafkademo; check logs at $LOG_OUT and $LOG_ERR" >&2
-                          exit 1
+                            echo "=== STDOUT ===" >&2
+                            cat "$LOG_OUT" >&2
+                            echo "=== STDERR ===" >&2
+                            cat "$LOG_ERR" >&2
+                            echo "Failed to start kafkademo" >&2
+                            exit 1
                         fi
                     '''
                 }
