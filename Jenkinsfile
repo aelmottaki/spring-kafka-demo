@@ -143,7 +143,9 @@ pipeline {
 
                         echo "Starting kafkademo with JAVA_HOME=$JAVA_HOME"
                         nohup java -jar "$APP_JAR" > "$LOG_OUT" 2> "$LOG_ERR" &
-                        echo $! > "$PID_FILE"
+                        APP_PID=$!
+                        disown $APP_PID
+                        echo $APP_PID > "$PID_FILE"
 
                         sleep 5
 
